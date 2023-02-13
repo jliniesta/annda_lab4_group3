@@ -116,11 +116,12 @@ class RestrictedBoltzmannMachine():
            all args have shape (size of mini-batch, size of respective layer)
         """
 
-        # [TODO TASK 4.1] get the gradients from the arguments (replace the 0s below) and update the weight and bias parameters
+        # [TASK 4.1 - Finished] 
+        # Get the gradients from the arguments (replace the 0s below) and update the weight and bias parameters
         
-        self.delta_bias_v += 0
-        self.delta_weight_vh += 0
-        self.delta_bias_h += 0
+        self.delta_bias_v = self.learning_rate * np.sum((v_0 - v_k), axis=0)
+        self.delta_weight_vh = self.learning_rate * ((v_0.T @ h_0) - (v_k.T @ h_k))
+        self.delta_bias_h = self.learning_rate * np.sum((h_0 - h_k), axis=0)
         
         self.bias_v += self.delta_bias_v
         self.weight_vh += self.delta_weight_vh
@@ -145,10 +146,14 @@ class RestrictedBoltzmannMachine():
 
         n_samples = visible_minibatch.shape[0]
 
-        # [TODO TASK 4.1] compute probabilities and activations (samples from probabilities) of hidden layer (replace the zeros below) 
-        
-        return np.zeros((n_samples,self.ndim_hidden)), np.zeros((n_samples,self.ndim_hidden))
+        # [TASK 4.1 - Finished] 
+        # Compute probabilities and activations (samples from probabilities) of hidden layer (replace the zeros below) 
 
+        # Shape of p_h_given_v and h: (n_samples, self.ndim_hidden)
+        p_h_given_v = sigmoid(np.dot(visible_minibatch, self.weight_vh) + self.bias_h)
+        h = sample_binary(p_h_given_v)
+
+        return p_h_given_v, h
 
     def get_v_given_h(self,hidden_minibatch):
         
@@ -160,7 +165,7 @@ class RestrictedBoltzmannMachine():
            hidden_minibatch: shape is (size of mini-batch, size of hidden layer)
         Returns:        
            tuple ( p(v|h) , v) 
-           both are shaped (size of mini-batch, size of visible layer)
+           both are shaped (size of mini-batch (n_samples), size of visible layer (ndim_visible))
         """
         
         assert self.weight_vh is not None
@@ -176,24 +181,36 @@ class RestrictedBoltzmannMachine():
             to get activities. The probabilities as well as activities can then be concatenated back into a normal visible layer.
             """
 
-            # [TODO TASK 4.1] compute probabilities and activations (samples from probabilities) of visible layer (replace the pass below). \
+            # [TASK 4.1 - Finished] 
+            # Compute probabilities and activations (samples from probabilities) of visible layer (replace the pass below). \
             # Note that this section can also be postponed until TASK 4.2, since in this task, stand-alone RBMs do not contain labels in visible layer.
-            
-            pass
+
+            support = np.dot(hidden_minibatch, self.weight_vh.T) + self.bias_v
+            support[support < -75] = -75
+            p_v_given_h, v = np.zeros(support.shape), np.zeros(support.shape)
+
+            # Split into two parts and apply different activation functions to get probabilities and a sampling method to get activities
+            p_v_given_h[:, :-self.n_labels] = sigmoid(support[:, :-self.n_labels])
+            p_v_given_h[:, -self.n_labels:] = softmax(support[:, -self.n_labels:])
+
+            v[:, :-self.n_labels] = sample_binary(p_v_given_h[:, :-self.n_labels])
+            v[:, -self.n_labels:] = sample_categorical(p_v_given_h[:, -self.n_labels:])
             
         else:
                         
-            # [TODO TASK 4.1] compute probabilities and activations (samples from probabilities) of visible layer (replace the pass and zeros below)             
+            # [TASK 4.1 - Finished] 
+            # Compute probabilities and activations (samples from probabilities) of visible layer (replace the pass and zeros below)             
 
-            pass
-        
-        return np.zeros((n_samples,self.ndim_visible)), np.zeros((n_samples,self.ndim_visible))
+            support = np.dot(hidden_minibatch, self.weight_vh.T) + self.bias_v
+            # support[support < -75] = -75
+            p_v_given_h = sigmoid(support)
+            v = sample_binary(p_v_given_h)
+
+        return p_v_given_h, v
 
 
     
     """ rbm as a belief layer : the functions below do not have to be changed until running a deep belief net """
-
-    
 
     def untwine_weights(self):
         
