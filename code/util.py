@@ -81,19 +81,19 @@ def read_mnist(dim=[28,28],n_train=60000,n_test=1000):
     Read mnist train and test data. Images are normalized to be in range [0,1]. Labels are one-hot coded.
     """    
 
-    train_imgs = load_idxfile("train-images-idx3-ubyte")
+    train_imgs = load_idxfile("../lab4_dataset/data/train-images-idx3-ubyte")
     train_imgs = train_imgs / 255.
     train_imgs = train_imgs.reshape(-1,dim[0]*dim[1])
 
-    train_lbls = load_idxfile("train-labels-idx1-ubyte")
+    train_lbls = load_idxfile("../lab4_dataset/data/train-labels-idx1-ubyte")
     train_lbls_1hot = np.zeros((len(train_lbls),10),dtype=np.float32)
     train_lbls_1hot[range(len(train_lbls)),train_lbls] = 1.
 
-    test_imgs = load_idxfile("t10k-images-idx3-ubyte")
+    test_imgs = load_idxfile("../lab4_dataset/data/t10k-images-idx3-ubyte")
     test_imgs = test_imgs / 255.
     test_imgs = test_imgs.reshape(-1,dim[0]*dim[1])
 
-    test_lbls = load_idxfile("t10k-labels-idx1-ubyte")
+    test_lbls = load_idxfile("../lab4_dataset/data/t10k-labels-idx1-ubyte")
     test_lbls_1hot = np.zeros((len(test_lbls),10),dtype=np.float32)
     test_lbls_1hot[range(len(test_lbls)),test_lbls] = 1.
 
@@ -112,7 +112,7 @@ def viz_rf(weights,it,grid):
             axs[x,y].set_xticks([]);
             axs[x,y].set_yticks([]);
             axs[x,y].imshow(weights[:,:,y+grid[1]*x], cmap="bwr", vmin=-imax, vmax=imax, interpolation=None)
-    plt.savefig("rf.iter%06d.png"%it)
+    plt.savefig("viz_rf/rf_iter"+ str(it) +".png", dpi=1000.0)
     plt.close('all')
 
 def stitch_video(fig,imgs):
