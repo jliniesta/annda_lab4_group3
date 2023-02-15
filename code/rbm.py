@@ -1,6 +1,10 @@
 from util import *
 from math import ceil
 from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+
+title_font = {'fontname':'Arial', 'size':'14', 'color':'black', 'weight':'bold', 'family':'monospace'}
+
 class RestrictedBoltzmannMachine():
     '''
     For more details : A Practical Guide to Training Restricted Boltzmann Machines https://www.cs.toronto.edu/~hinton/absps/guideTR.pdf
@@ -58,7 +62,7 @@ class RestrictedBoltzmannMachine():
         
         self.momentum = 0.7
 
-        self.print_period = 2
+        self.print_period = 1
         
         self.rf = { # receptive-fields. Only applicable when visible layer is input data
             "period" : 2, # iteration period to visualize
@@ -69,7 +73,7 @@ class RestrictedBoltzmannMachine():
         return
 
         
-    def cd1(self,visible_trainset, n_iterations=10000, visualize_w = True):
+    def cd1(self,visible_trainset, n_iterations=10000, visualize_w = True, plot = True):
         
         """Contrastive Divergence with k=1 full alternating Gibbs sampling
 
@@ -82,11 +86,10 @@ class RestrictedBoltzmannMachine():
         
         n_samples = visible_trainset.shape[0]
         batch_in_it = ceil(n_samples / self.batch_size)
-        losses = []
+        recon_losses = []
         delta_weight_vh_norm = []
         delta_bias_v_norm = []
         delta_bias_h_norm = []
-        error_per_iteration = []
 
         for it in range(n_iterations):
 
@@ -94,6 +97,8 @@ class RestrictedBoltzmannMachine():
             # Run k=1 alternating Gibbs sampling : v_0 -> h_0 ->  v_1 -> h_1.
                 # Note that inference methods returns both probabilities and activations (samples from probablities) and you may have to decide when to use what.
         
+            np.random.shuffle(visible_trainset)
+
             for batch in range(batch_in_it):
 
                 start_index = batch * self.batch_size
@@ -106,11 +111,11 @@ class RestrictedBoltzmannMachine():
                 # h_0 -> v_1
                 p_v_given_h_1, v_1 = self.get_v_given_h(h_0)
                 # v_1 -> h_1
-                p_h_given_v_0, h_1 = self.get_h_given_v(v_1)
+                p_h_given_v_0, h_1 = self.get_h_given_v(p_v_given_h_1)
                   
-            # [TASK 4.1 - Finished] 
-            # Update the parameters using function 'update_params'
-            self.update_params(v_0, h_0, v_1, h_1)
+                # [TASK 4.1 - Finished] 
+                # Update the parameters using function 'update_params'
+                self.update_params(v_0, h_0, v_1, h_1)
 
             # Visualize once in a while when visible layer is input images
             if visualize_w:
@@ -123,10 +128,9 @@ class RestrictedBoltzmannMachine():
 
                 ph, h_0 = self.get_h_given_v(visible_trainset)
                 pv, reconstruct = self.get_v_given_h(h_0)      
-
-                recon_loss = mean_squared_error(visible_trainset, reconstruct)       
-                losses.append(recon_loss)  
-                # error_per_iteration.append(mean_squared_error(visible_trainset, pv))
+                # recon_loss = np.linalg.norm(visible_trainset - reconstruct)
+                recon_loss = mean_squared_error(visible_trainset, pv)       
+                recon_losses.append(recon_loss)  
 
                 print("Iteration = {}: recon_loss = {:4.4f}".format(it, recon_loss))
         
@@ -134,10 +138,7 @@ class RestrictedBoltzmannMachine():
             delta_bias_v_norm.append(np.linalg.norm(self.delta_bias_v))
             delta_bias_h_norm.append(np.linalg.norm(self.delta_bias_h))
 
-        # print(error_per_iteration)
-        # print(losses)
-
-        return
+        return recon_losses, delta_weight_vh_norm, delta_bias_v_norm, delta_bias_h_norm
     
 
     def update_params(self,v_0,h_0,v_k,h_k):
@@ -190,7 +191,7 @@ class RestrictedBoltzmannMachine():
 
         # Shape of p_h_given_v and h: (n_samples, self.ndim_hidden)
         # p(hj = 1) = sigmoid(b_j + sum_i (w_ij v_i))
-        p_h_given_v = sigmoid(self.bias_h + np.dot(visible_minibatch, self.weight_vh))
+        p_h_given_v = sigmoid(self.bias_h + visible_minibatch @ self.weight_vh)
 
         # Sample activations ON=1 (OFF=0) from probabilities sigmoid probabilities
         h = sample_binary(p_h_given_v)
@@ -214,8 +215,6 @@ class RestrictedBoltzmannMachine():
 
         n_samples = hidden_minibatch.shape[0]
 
-        support = self.bias_v + np.dot(hidden_minibatch, self.weight_vh.T)
-
         if self.is_top:
 
             """
@@ -231,6 +230,8 @@ class RestrictedBoltzmannMachine():
 
             p_v_given_h, v = np.zeros(support.shape), np.zeros(support.shape)
 
+            support = self.bias_v + hidden_minibatch @ self.weight_vh.T
+            
             # Split into two parts and apply different activation functions to get probabilities and a sampling method to get activities
             p_v_given_h[:, :-self.n_labels] = sigmoid(support[:, :-self.n_labels])
             p_v_given_h[:, -self.n_labels:] = softmax(support[:, -self.n_labels:])
@@ -244,6 +245,7 @@ class RestrictedBoltzmannMachine():
                         
             # [TASK 4.1 - Finished] 
             # Compute probabilities and activations (samples from probabilities) of visible layer           
+            support = self.bias_v + hidden_minibatch @ self.weight_vh.T
             p_v_given_h = sigmoid(support)
 
             # Compute activations ON=1 (OFF=0) from probabilities sigmoid probabilities of visible layer
@@ -365,3 +367,54 @@ class RestrictedBoltzmannMachine():
         self.bias_h += self.delta_bias_h
         
         return    
+
+
+    def compute_reconstruction_losses(self, test_imgs):
+
+        recon_losses = []
+
+        for img in test_imgs:
+            ph, h_0 = self.get_h_given_v(img)
+            pv, reconstruct = self.get_v_given_h(h_0)
+            recon_loss = mean_squared_error(img, reconstruct)  
+            recon_losses.append(recon_loss)
+        
+        return recon_losses
+
+    def visualize_reconstruction(self, images, image_size):
+        '''Visualizes the original image and the RBM reconstruction of it for each image in "images". '''
+
+        no_of_images = images.shape[0]
+        recon_losses = []
+        
+        for i in range(no_of_images):
+            # Get an image and compute its reconstruction
+            image = images[i, :]  # Get the image as a vector array
+            ph, h_0 = self.get_h_given_v(image)
+            pv, reconstruct = self.get_v_given_h(h_0)
+            recon_loss = mean_squared_error(image, reconstruct)
+            recon_losses.append(recon_loss)
+
+            original_image = image.reshape(image_size)
+            reconstructed_image = pv.reshape(image_size)
+
+            # Plot both original and reconstructed image
+            fig = plt.figure(figsize=(6, 4)) 
+            fig_title = 'Reconstruction Loss: {:.4f}'.format(recon_loss)
+            fig.suptitle(fig_title, **title_font)
+            ax = fig.add_subplot(1, 2, 1)
+            imgplot = plt.imshow(original_image)
+            plt.grid(False)
+            plt.axis('off')
+            ax.set_title('Original Image')
+            # plt.colorbar(ticks=[0.1, 0.3, 0.5, 0.7, 0.9], orientation='horizontal')
+
+            ax = fig.add_subplot(1, 2, 2)
+            imgplot = plt.imshow(reconstructed_image)
+            ax.set_title('Reconstructed image')
+            plt.grid(False)
+            plt.axis('off')
+            fig.tight_layout()       
+            # plt.colorbar(ticks=[0.1, 0.3, 0.5, 0.7, 0.9], orientation='horizontal')
+            plt.savefig('figures/image_'+ str(i) +'.pdf', dpi=1000.0)
+            fig.show()
