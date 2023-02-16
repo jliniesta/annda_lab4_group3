@@ -73,19 +73,26 @@ class DeepBeliefNet():
         # and read out the labels (replace pass below and 'predicted_lbl' to your predicted labels).
         # NOTE : inferring entire train/test set may require too much compute memory (depends on your system). In that case, divide into mini-batches.
 
-        h_1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(visible_layer)[1]
-        h_2 = self.rbm_stack['hid--pen'].get_h_given_v_dir(h_1)[1]
-        h_2_label = np.concatenate((h_2, labels), axis=1)
+        p_h1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(visible_layer)[0]
 
-        for _ in range(self.n_gibbs_recog):
+        for i in range(self.n_gibbs_recog):
+            # sampling second hidden layer
+            h_2 = self.rbm_stack['hid--pen'].get_h_given_v_dir(p_h1)[1]
+
+            # adding labels
+            h_2_label = np.concatenate((h_2, labels), axis=1)
+
             out = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
             out_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(out)[1]
-            out_label[:, :-labels.shape[1]:] = h_2
 
-        predicted_lbl = out_label[:, -true_lbl.shape[1]:]
+            # adding all the softmax results together. Later, the label with the largest total results from all the epochs will win.
+            if i == 0:
+                pred_lbl = out_label[:, :-labels.shape[1]:].copy()
+            else:
+                pred_lbl += out_label[:, :-labels.shape[1]:].copy()
 
         print("accuracy = {.2f}".format(
-            100.*np.mean(np.argmax(predicted_lbl, axis=1) == np.argmax(true_lbl, axis=1))))
+            100.*np.mean(np.argmax(pred_lbl, axis=1) == np.argmax(true_lbl, axis=1))))
 
     def generate(self, true_lbl, name):
         """Generate data from labels
@@ -110,13 +117,13 @@ class DeepBeliefNet():
         # top to the bottom visible layer (replace 'vis' from random to your generated visible layer).
 
         random_vis = np.random.choice([0, 1], self.sizes['vis']).reshape(-1, self.sizes['vis'])
-        h_1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[1]
-        h_2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(h_1)[1]
-        h_2_label = np.concatenate((h_2, labels), axis=1)
+        p_h1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[0]
+        p_h2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(p_h1)[0]
+        h_2_label = np.concatenate((p_h2, labels), axis=1)
 
         for _ in range(self.n_gibbs_gener):
 
-            top = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
+            top = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[0]
             h_2_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(top)[1]
 
             # Fix the labels
@@ -165,8 +172,11 @@ class DeepBeliefNet():
             """
             CD-1 training for vis--hid
             """
+
             # training first hiden layer, and getting the final probability of h1
-            p_h1 = self.rbm_stack["vis--hid"].cd1(vis_trainset, n_iterations)[4]
+            self.rbm_stack["vis--hid"].cd1(vis_trainset, n_iterations)
+            p_h1 = self.rbm_stack["vis--hid"].get_h_given_v(vis_trainset)[0]
+
             self.savetofile_rbm(loc="trained_rbm", name="vis--hid")
 
             print("training hid--pen")
@@ -174,8 +184,10 @@ class DeepBeliefNet():
             CD-1 training for hid--pen
             """
             self.rbm_stack["vis--hid"].untwine_weights()
+
             # training second hiden layer, and getting the final probability of h2
-            p_h2 = self.rbm_stack["hid--pen"].cd1(p_h1, n_iterations)[4]
+            self.rbm_stack["hid--pen"].cd1(p_h1, n_iterations)
+            p_h2 = self.rbm_stack["hid--pen"].get_h_given_v(p_h1)[0]
             self.savetofile_rbm(loc="trained_rbm", name="hid--pen")
 
             print("training pen+lbl--top")
@@ -184,6 +196,7 @@ class DeepBeliefNet():
             """
             self.rbm_stack["hid--pen"].untwine_weights()
             # concatenating with labels for final layer training
+
             p_h2_label = np.concatenate((p_h2, lbl_trainset), axis=1)
 
             self.rbm_stack["pen+lbl--top"].cd1(p_h2_label, n_iterations)

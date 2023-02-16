@@ -142,7 +142,7 @@ class RestrictedBoltzmannMachine():
             delta_bias_v_norm.append(np.linalg.norm(self.delta_bias_v))
             delta_bias_h_norm.append(np.linalg.norm(self.delta_bias_h))
 
-        return recon_losses, delta_weight_vh_norm, delta_bias_v_norm, delta_bias_h_norm, p_h_given_v_1
+        return recon_losses, delta_weight_vh_norm, delta_bias_v_norm, delta_bias_h_norm
 
     def update_params(self, v_0, h_0, v_k, h_k):
         """Update the weight and bias parameters.
