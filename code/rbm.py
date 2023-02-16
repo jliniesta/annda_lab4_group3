@@ -280,9 +280,14 @@ class RestrictedBoltzmannMachine():
 
         n_samples = visible_minibatch.shape[0]
 
-        # [TODO TASK 4.2] perform same computation as the function 'get_h_given_v' but with directed connections (replace the zeros below) 
+        # [TASK 4.2 - Finished]  
+        # Perform same computation as the function 'get_h_given_v' but with directed connections 
+
+        p_h_given_v_dir = sigmoid(self.bias_h + visible_minibatch @ self.weight_v_to_h)
         
-        return np.zeros((n_samples,self.ndim_hidden)), np.zeros((n_samples,self.ndim_hidden))
+        h = sample_binary(p_h_given_v_dir)
+
+        return p_h_given_v_dir, h
 
 
     def get_v_given_h_dir(self,hidden_minibatch):
@@ -312,19 +317,24 @@ class RestrictedBoltzmannMachine():
             to get activities. The probabilities as well as activities can then be concatenated back into a normal visible layer.
             """
             
-            # [TODO TASK 4.2] Note that even though this function performs same computation as 'get_v_given_h' but with directed connections,
+            # [TASK 4.2 - Finished] 
+            # Note that even though this function performs same computation as 'get_v_given_h' but with directed connections,
             # this case should never be executed : when the RBM is a part of a DBN and is at the top, it will have not have directed connections.
             # Appropriate code here is to raise an error (replace pass below)
             
-            pass
+            p_v_given_h_dir, v = None, None
+            print("ERROR")
             
         else:
                         
-            # [TODO TASK 4.2] performs same computaton as the function 'get_v_given_h' but with directed connections (replace the pass and zeros below)             
+            # [TASK 4.2 - Finished] 
+            # Performs same computaton as the function 'get_v_given_h' but with directed connections (replace the pass and zeros below)             
+            p_v_given_h_dir = sigmoid(self.bias_v + hidden_minibatch @ self.weight_h_to_v)
 
-            pass
+            # Compute activations ON=1 (OFF=0) from probabilities sigmoid probabilities of visible layer
+            v = sample_binary(p_v_given_h_dir)
             
-        return np.zeros((n_samples,self.ndim_visible)), np.zeros((n_samples,self.ndim_visible))        
+        return p_v_given_h_dir, v      
         
     def update_generate_params(self,inps,trgs,preds):
         
