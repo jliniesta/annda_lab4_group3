@@ -31,7 +31,7 @@ if __name__ == "__main__":
     dbn = DeepBeliefNet(sizes={"vis": image_size[0]*image_size[1], "hid": 500, "pen": 500, "top": 2000, "lbl": 10},
                         image_size=image_size,
                         n_labels=10,
-                        batch_size=10
+                        batch_size=256
                         )
 
     ''' greedy layer-wise training '''

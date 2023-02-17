@@ -42,7 +42,7 @@ class DeepBeliefNet():
 
         self.batch_size = batch_size
 
-        self.n_gibbs_recog = 15
+        self.n_gibbs_recog = 15  # 15 default
 
         self.n_gibbs_gener = 200
 
@@ -73,25 +73,31 @@ class DeepBeliefNet():
         # and read out the labels (replace pass below and 'predicted_lbl' to your predicted labels).
         # NOTE : inferring entire train/test set may require too much compute memory (depends on your system). In that case, divide into mini-batches.
 
+        # getting probs for first hidden layer, which later will be used to sample the second layer
         p_h1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(visible_layer)[0]
 
         for i in range(self.n_gibbs_recog):
+            print(f"iteration {i+1} of {self.n_gibbs_recog}")
+
             # sampling second hidden layer
             h_2 = self.rbm_stack['hid--pen'].get_h_given_v_dir(p_h1)[1]
 
             # adding labels
             h_2_label = np.concatenate((h_2, labels), axis=1)
 
-            out = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
-            out_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(out)[1]
+            # getting values from top layer (probability values)
+            out = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[0]
 
-            # adding all the softmax results together. Later, the label with the largest total results from all the epochs will win.
+            # checking the predicted labels, softamax values
+            out_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(out)[0][:, -labels.shape[1]:]
+
+            # adding all the softmax results together. Later, the label with the largest sum from all iterationsfrom all the epochs will win.
             if i == 0:
-                pred_lbl = out_label[:, :-labels.shape[1]:].copy()
+                pred_lbl = out_label.copy()
             else:
-                pred_lbl += out_label[:, :-labels.shape[1]:].copy()
+                pred_lbl += out_label.copy()
 
-        print("accuracy = {.2f}".format(
+        print("accuracy = {:.2f}".format(
             100.*np.mean(np.argmax(pred_lbl, axis=1) == np.argmax(true_lbl, axis=1))))
 
     def generate(self, true_lbl, name):
@@ -198,6 +204,7 @@ class DeepBeliefNet():
             # concatenating with labels for final layer training
 
             p_h2_label = np.concatenate((p_h2, lbl_trainset), axis=1)
+            print(p_h2_label.shape)
 
             self.rbm_stack["pen+lbl--top"].cd1(p_h2_label, n_iterations)
             self.savetofile_rbm(loc="trained_rbm", name="pen+lbl--top")

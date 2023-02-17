@@ -230,10 +230,9 @@ class RestrictedBoltzmannMachine():
             # [TASK 4.1 - Finished]
 
             # Compute probabilities of visible layer
+            support = self.bias_v + hidden_minibatch @ self.weight_vh.T
 
             p_v_given_h, v = np.zeros(support.shape), np.zeros(support.shape)
-
-            support = self.bias_v + hidden_minibatch @ self.weight_vh.T
 
             # Split into two parts and apply different activation functions to get probabilities and a sampling method to get activities
             p_v_given_h[:, :-self.n_labels] = sigmoid(support[:, :-self.n_labels])
