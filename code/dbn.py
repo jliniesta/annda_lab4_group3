@@ -86,9 +86,9 @@ class DeepBeliefNet():
             h_2_label = np.concatenate((h_2, labels), axis=1)
 
             # getting values from top layer (probability values)
-            out = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[0]
+            out = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
 
-            # checking the predicted labels, softamax values
+            # checking the predicted labels, softmax values
             out_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(out)[0][:, -labels.shape[1]:]
 
             # adding all the softmax results together. Later, the label with the largest sum from all iterationsfrom all the epochs will win.
@@ -124,12 +124,12 @@ class DeepBeliefNet():
 
         random_vis = np.random.choice([0, 1], self.sizes['vis']).reshape(-1, self.sizes['vis'])
         p_h1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[0]
-        p_h2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(p_h1)[0]
-        h_2_label = np.concatenate((p_h2, labels), axis=1)
+        h_2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(p_h1)[1]
+        h_2_label = np.concatenate((h_2, labels), axis=1)
 
         for _ in range(self.n_gibbs_gener):
 
-            top = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[0]
+            top = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
             h_2_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(top)[1]
 
             # Fix the labels
@@ -204,7 +204,6 @@ class DeepBeliefNet():
             # concatenating with labels for final layer training
 
             p_h2_label = np.concatenate((p_h2, lbl_trainset), axis=1)
-            print(p_h2_label.shape)
 
             self.rbm_stack["pen+lbl--top"].cd1(p_h2_label, n_iterations)
             self.savetofile_rbm(loc="trained_rbm", name="pen+lbl--top")
