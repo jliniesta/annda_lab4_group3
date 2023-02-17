@@ -42,9 +42,9 @@ class DeepBeliefNet():
 
         self.batch_size = batch_size
 
-        self.n_gibbs_recog = 15  # 15 default
+        self.n_gibbs_recog = 1  # 15 default
 
-        self.n_gibbs_gener = 200
+        self.n_gibbs_gener = 5  # 200 default
 
         self.n_gibbs_wakesleep = 5
 
@@ -143,7 +143,8 @@ class DeepBeliefNet():
             records.append([ax.imshow(vis.reshape(self.image_size), cmap="bwr",
                                       vmin=0, vmax=1, animated=True, interpolation=None)])
 
-        anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
+        #anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
+        anim = stitch_video(fig, records).save(f"anim_{np.argmax(true_lbl)}.gif")
 
         return records
 
