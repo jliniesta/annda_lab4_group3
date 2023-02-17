@@ -42,9 +42,9 @@ class DeepBeliefNet():
 
         self.batch_size = batch_size
 
-        self.n_gibbs_recog = 1  # 15 default
+        self.n_gibbs_recog = 15  # 15 default
 
-        self.n_gibbs_gener = 5  # 200 default
+        self.n_gibbs_gener = 500  # 200 default
 
         self.n_gibbs_wakesleep = 5
 
@@ -91,7 +91,7 @@ class DeepBeliefNet():
             # checking the predicted labels, softmax values
             out_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(out)[0][:, -labels.shape[1]:]
 
-            # adding all the softmax results together. Later, the label with the largest sum from all iterationsfrom all the epochs will win.
+            # adding all the softmax results together. Later, the label with the largest sum from all iterations from all the epochs will win.
             if i == 0:
                 pred_lbl = out_label.copy()
             else:
@@ -123,11 +123,11 @@ class DeepBeliefNet():
         # top to the bottom visible layer (replace 'vis' from random to your generated visible layer).
 
         random_vis = np.random.choice([0, 1], self.sizes['vis']).reshape(-1, self.sizes['vis'])
-        p_h1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[0]
-        h_2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(p_h1)[1]
+        h_1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[1]
+        h_2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(h_1)[1]
         h_2_label = np.concatenate((h_2, labels), axis=1)
 
-        for _ in range(self.n_gibbs_gener):
+        for i in range(self.n_gibbs_gener):
 
             top = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
             h_2_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(top)[1]
@@ -143,8 +143,7 @@ class DeepBeliefNet():
             records.append([ax.imshow(vis.reshape(self.image_size), cmap="bwr",
                                       vmin=0, vmax=1, animated=True, interpolation=None)])
 
-        #anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
-        anim = stitch_video(fig, records).save(f"anim_{np.argmax(true_lbl)}.gif")
+        anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
 
         return records
 

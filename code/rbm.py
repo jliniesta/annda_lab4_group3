@@ -100,7 +100,7 @@ class RestrictedBoltzmannMachine():
             # Run k=1 alternating Gibbs sampling : v_0 -> h_0 ->  v_1 -> h_1.
             # Note that inference methods returns both probabilities and activations (samples from probablities) and you may have to decide when to use what.
 
-            np.random.shuffle(visible_trainset)
+            # np.random.shuffle(visible_trainset)
 
             for batch in range(batch_in_it):
 
