@@ -143,7 +143,8 @@ class DeepBeliefNet():
             records.append([ax.imshow(vis.reshape(self.image_size), cmap="bwr",
                                       vmin=0, vmax=1, animated=True, interpolation=None)])
 
-        anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
+        #anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
+        anim = stitch_video(fig, records).save(f"anim_{np.argmax(true_lbl)}.gif")
 
         return records
 
