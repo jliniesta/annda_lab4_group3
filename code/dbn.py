@@ -122,21 +122,32 @@ class DeepBeliefNet():
         # Fix the label in the label layer and run alternating Gibbs sampling in the top RBM. From the top RBM, drive the network \
         # top to the bottom visible layer (replace 'vis' from random to your generated visible layer).
 
+        # initializing by generatying a random image in the bottom layer, and propagating it forward
         random_vis = np.random.choice([0, 1], self.sizes['vis']).reshape(-1, self.sizes['vis'])
         h_1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[1]
         h_2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(h_1)[1]
+
+        # adding the desired label
         h_2_label = np.concatenate((h_2, labels), axis=1)
 
         for i in range(self.n_gibbs_gener):
 
+            # getting values in from the top layer
             top = self.rbm_stack["pen+lbl--top"].get_h_given_v(h_2_label)[1]
-            h_2_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(top)[1]
 
-            # Fix the labels
+            # getting back values in the penultimate layer
+            h_2_label = self.rbm_stack["pen+lbl--top"].get_v_given_h(top)[0]
+
+            # Fix the labels, making sure it always corresponds to the 1-hot encoding
             h_2_label[:, -labels.shape[1]:] = labels[:, :]
+
+            # removing the labes, preparing for propagating down
             h_2_top_to_bottom = h_2_label[:, :-labels.shape[1]]
+
+            # getting the first hidden layer
             h_1_top_to_bottom = self.rbm_stack["hid--pen"].get_v_given_h_dir(h_2_top_to_bottom)[1]
 
+            # getting visible layer
             vis = self.rbm_stack["vis--hid"].get_v_given_h_dir(h_1_top_to_bottom)[1]
             # vis = np.random.rand(n_sample,self.sizes["vis"])
 
