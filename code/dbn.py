@@ -42,9 +42,9 @@ class DeepBeliefNet():
 
         self.batch_size = batch_size
 
-        self.n_gibbs_recog = 15  # 15 default
+        self.n_gibbs_recog = 1  # 15 default
 
-        self.n_gibbs_gener = 200
+        self.n_gibbs_gener = 5  # 200 default
 
         self.n_gibbs_wakesleep = 5
 
