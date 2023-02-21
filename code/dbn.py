@@ -42,9 +42,9 @@ class DeepBeliefNet():
 
         self.batch_size = batch_size
 
-        self.n_gibbs_recog = 15  # 15 default
+        self.n_gibbs_recog = 20  # 15 default
 
-        self.n_gibbs_gener = 500  # 200 default
+        self.n_gibbs_gener = 1000  # 200 default
 
         self.n_gibbs_wakesleep = 5
 
@@ -63,6 +63,8 @@ class DeepBeliefNet():
         n_samples = true_img.shape[0]
 
         visible_layer = true_img  # visible layer gets the image data
+        print(visible_layer.shape)
+        print(true_lbl.shape)
 
         # initialise label units with the value of 0.1
         labels = np.ones(true_lbl.shape) / \
@@ -75,7 +77,7 @@ class DeepBeliefNet():
 
         # getting probs for first hidden layer, which later will be used to sample the second layer
         p_h1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(visible_layer)[0]
-
+        accuracy = np.zeros(self.n_gibbs_recog)
         for i in range(self.n_gibbs_recog):
             print(f"iteration {i+1} of {self.n_gibbs_recog}")
 
@@ -97,8 +99,59 @@ class DeepBeliefNet():
             else:
                 pred_lbl += out_label.copy()
 
-        print("accuracy = {:.2f}".format(
-            100.*np.mean(np.argmax(pred_lbl, axis=1) == np.argmax(true_lbl, axis=1))))
+            acc = 100.*np.mean(np.argmax(pred_lbl, axis=1) == np.argmax(true_lbl, axis=1))
+            print("accuracy = {:.2f}".format(acc))
+            print()
+            accuracy[i] = acc
+        # uncomment below for saving mislabelsed digits
+        '''
+        fig, ax = plt.subplots(3, 4)
+        a = 0
+        b = 0
+        col = 0
+        row = 0
+        while a < 12:
+            print(a)
+            if np.argmax(pred_lbl[b, :]) != np.argmax(true_lbl[b, :]):
+                ax[row, col].imshow(visible_layer[b, :].reshape([28, 28]), cmap="bwr",
+                                    vmin=0, vmax=1)
+                ax[row, col].set_title(str(np.argmax(pred_lbl[b, :])), fontsize=16)
+                ax[row, col].tick_params(left=False, right=False, labelleft=False,
+                                         labelbottom=False, bottom=False)
+
+                a += 1
+                if row > 1:
+                    row = 0
+                    col += 1
+                else:
+                    row += 1
+
+            b += 1
+        fig.tight_layout(pad=1.0)
+        plt.savefig(f"missclassified digits")
+        '''
+
+        # uncomment below for saving grid showing misclassified digits
+        '''
+        fig, ax = plt.subplots()
+
+        grid = np.zeros((true_lbl.shape[1], true_lbl.shape[1]))
+        for i in range(n_samples):
+            pred = np.argmax(pred_lbl[i, :])
+            true = np.argmax(true_lbl[i, :])
+            if pred != true:
+                grid[pred, true] += 1
+        grid = 100 * grid / np.sum(np.sum(grid))
+        im = ax.imshow(grid, cmap="bwr")
+        ax.set_xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        ax.set_yticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        ax.set_xlabel('True label', fontsize=12)
+        ax.set_ylabel('Predicted label', fontsize=12)
+        ax.set_title('Percentage of wrongly predicted digits', fontsize=14)
+        bar = plt.colorbar(im)
+
+        plt.savefig(f"missclass_grid")
+        '''
 
     def generate(self, true_lbl, name):
         """Generate data from labels
@@ -107,7 +160,9 @@ class DeepBeliefNet():
           true_lbl: true labels shaped (number of samples, size of label layer)
           name: string used for saving a video of generated visible activations
         """
-
+        train_imgs, train_lbls, test_imgs, test_lbls = read_mnist(
+            dim=[28, 28], n_train=1, n_test=3)
+        print(train_imgs.shape)
         n_sample = true_lbl.shape[0]
 
         records = []
@@ -123,13 +178,16 @@ class DeepBeliefNet():
         # top to the bottom visible layer (replace 'vis' from random to your generated visible layer).
 
         # initializing by generatying a random image in the bottom layer, and propagating it forward
-        random_vis = np.random.choice([0, 1], self.sizes['vis']).reshape(-1, self.sizes['vis'])
+        # random_vis = np.random.choice([0, 1], self.sizes['vis']).reshape(-1, self.sizes['vis'])
+        random_vis = train_imgs
+
         h_1 = self.rbm_stack["vis--hid"].get_h_given_v_dir(random_vis)[1]
         h_2 = self.rbm_stack["hid--pen"].get_h_given_v_dir(h_1)[1]
 
         # adding the desired label
         h_2_label = np.concatenate((h_2, labels), axis=1)
 
+        save_every = 50
         for i in range(self.n_gibbs_gener):
 
             # getting values in from the top layer
@@ -153,6 +211,8 @@ class DeepBeliefNet():
 
             records.append([ax.imshow(vis.reshape(self.image_size), cmap="bwr",
                                       vmin=0, vmax=1, animated=True, interpolation=None)])
+            if int(i/save_every) == i/save_every:
+                plt.savefig(f"{np.argmax(true_lbl)}_{int(i)}")
 
         anim = stitch_video(fig, records).save("%s.generate%d.mp4" % (name, np.argmax(true_lbl)))
 

@@ -195,6 +195,7 @@ class RestrictedBoltzmannMachine():
 
         # Shape of p_h_given_v and h: (n_samples, self.ndim_hidden)
         # p(hj = 1) = sigmoid(b_j + sum_i (w_ij v_i))
+
         p_h_given_v = sigmoid(self.bias_h + visible_minibatch @ self.weight_vh)
 
         # Sample activations ON=1 (OFF=0) from probabilities sigmoid probabilities
@@ -231,6 +232,7 @@ class RestrictedBoltzmannMachine():
 
             # Compute probabilities of visible layer
             support = self.bias_v + hidden_minibatch @ self.weight_vh.T
+            support[support < -75] = -75
 
             p_v_given_h, v = np.zeros(support.shape), np.zeros(support.shape)
 
